@@ -17,5 +17,8 @@
     "url": "https://github.com/GGlistano/checkout-backend/issues"
   },
   "homepage": "https://github.com/GGlistano/checkout-backend#readme",
-  "description": ""
+  "description": "",
+  "dependencies": {
+    "express": "^5.1.0"
+  }
 }
