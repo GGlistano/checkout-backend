@@ -30,22 +30,31 @@ const transporter = nodemailer.createTransport({
 });
 
 // Função para enviar email
-function enviarEmail(destino, assunto, texto) {
+function enviarEmail(destino, assunto, conteudoHTML) {
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS_APP,
+    },
+  });
+
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: destino,
     subject: assunto,
-     html: textoEmailHTML,
+    html: conteudoHTML,
   };
 
-  transporter.sendMail(mailOptions, (error, info) => {
-    if (error) {
-      console.error('Erro ao enviar e-mail:', error);
+  transporter.sendMail(mailOptions, (erro, info) => {
+    if (erro) {
+      console.error('❌ Erro ao enviar email:', erro);
     } else {
-      console.log('E-mail enviado:', info.response);
+      console.log('📧 Email enviado com sucesso:', info.response);
     }
   });
 }
+
 
 // Rota do pagamento
 app.post('/api/pagar', async (req, res) => {
@@ -130,16 +139,18 @@ app.post('/api/pagar', async (req, res) => {
 
     // --- AQUI: chama o envio do email assim que a compra for confirmada ---
     if (email) {
-      const nomeCliente = nome || 'cliente';
-      const textoEmailHTML = `
-  <p>Olá ${nomeCliente}, seu pedido foi recebido com sucesso!</p>
-  <p>Referência: ${reference}. Valor: MZN ${amount}.</p>
-  <p>Obrigado pela compra!</p>
-  <p>Para acessar o produto, clique no link: <a href="https://club.membify.com.br/app" target="_blank">Acessar produto</a></p>
-`;
+  const nomeCliente = nome || 'Cliente';
 
-     enviarEmail(email, 'Compra Confirmada!', textoEmailHTML);
-    }
+  const textoEmailHTML = `
+    <p>Olá ${nomeCliente}, seu pedido foi recebido com sucesso!</p>
+    <p>Referência: ${reference}. Valor: MZN ${amount}.</p>
+    <p>Obrigado pela compra!</p>
+    <p>Para acessar o produto, clique no link: <a href="https://club.membify.com.br/app" target="_blank">Acessar produto</a></p>
+  `;
+
+  enviarEmail(email, 'Compra Confirmada!', textoEmailHTML);
+}
+
 
     res.json({ status: 'ok', data: response.data });
   } catch (err) {
