@@ -89,13 +89,17 @@ async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, referen
 
 // Rota do pagamento
 app.post('/api/pagar', async (req, res) => {
-  const { phone, amount, reference, metodo, email, nome, pedido } = req.body; // Pegue nome e pedido também se tiver
+  const { phone, amount, reference, metodo, email, nome, pedido } = req.body;
 
   console.log('Request body:', req.body);
 
   if (!phone || !amount || !reference || !metodo) {
-    return res.status(400).json({ status: 'error', message: 'phone, amount, reference e metodo são obrigatórios' });
+    return res.status(400).json({
+      status: 'error',
+      message: 'phone, amount, reference e metodo são obrigatórios',
+    });
   }
+
   let walletId, token;
   if (metodo === 'mpesa') {
     walletId = process.env.MPESA_WALLET_ID;
@@ -104,7 +108,10 @@ app.post('/api/pagar', async (req, res) => {
     walletId = process.env.EMOLA_WALLET_ID;
     token = process.env.EMOLA_TOKEN;
   } else {
-    return res.status(400).json({ status: 'error', message: 'Método inválido. Use mpesa ou emola.' });
+    return res.status(400).json({
+      status: 'error',
+      message: 'Método inválido. Use mpesa ou emola.',
+    });
   }
 
   const url = `https://e2payments.explicador.co.mz/v1/c2b/${metodo}-payment/${walletId}`;
@@ -129,7 +136,7 @@ app.post('/api/pagar', async (req, res) => {
 
     console.log('Resposta da API externa:', response.data);
 
-    // Enviar evento para o Facebook (já tem)
+    // Enviar evento para o Facebook
     const fbPixelId = process.env.FB_PIXEL_ID;
     const fbAccessToken = process.env.FB_ACCESS_TOKEN;
 
@@ -160,42 +167,42 @@ app.post('/api/pagar', async (req, res) => {
             },
           }
         );
-
         console.log('🎯 Evento de purchase enviado para o Facebook');
       } catch (fbErr) {
         console.error('❌ Erro ao enviar evento pro Facebook:', fbErr.response?.data || fbErr.message);
       }
     }
 
-    // --- AQUI: chama o envio do email assim que a compra for confirmada ---
+    // Enviar e-mail se tiver email
+    const nomeCliente = nome || 'Cliente';
+
     if (email) {
-  const nomeCliente = nome || 'Cliente';
+      const textoEmailHTML = `
+        <p>Olá ${nomeCliente}, seu pedido foi recebido com sucesso!</p>
+        <p>Referência: ${reference}. Valor: MZN ${amount}.</p>
+        <p>Obrigado pela compra!</p>
+        <p>Para acessar o produto, clique no link: 
+        <a href="https://club.membify.com.br/app" target="_blank">Acessar produto</a></p>
+      `;
 
-  const textoEmailHTML = `
-    <p>Olá ${nomeCliente}, seu pedido foi recebido com sucesso!</p>
-    <p>Referência: ${reference}. Valor: MZN ${amount}.</p>
-    <p>Obrigado pela compra!</p>
-    <p>Para acessar o produto, clique no link: <a href="https://club.membify.com.br/app" target="_blank">Acessar produto</a></p>
-  `;
+      enviarEmail(email, 'Compra Confirmada!', textoEmailHTML);
+    }
 
-  enviarEmail(email, 'Compra Confirmada!', textoEmailHTML);
-}
-      // Agora adiciona na planilha
-  try {
-    await adicionarNaPlanilha({
-      nome: nomeCliente,
-      email,
-      phone,
-      metodo,
-      amount,
-      reference,
-    });
-  } catch (err) {
-    console.error('Erro ao adicionar dados na planilha:', err);
-  }
-}
+    // Adicionar na planilha
+    try {
+      await adicionarNaPlanilha({
+        nome: nomeCliente,
+        email,
+        phone,
+        metodo,
+        amount,
+        reference,
+      });
+    } catch (err) {
+      console.error('Erro ao adicionar dados na planilha:', err);
+    }
 
-
+    // Retorno da API
     res.json({ status: 'ok', data: response.data });
   } catch (err) {
     console.error('Erro na requisição externa:', err.response?.data || err.message);
