@@ -35,7 +35,7 @@ function enviarEmail(destino, assunto, texto) {
     from: process.env.EMAIL_USER,
     to: destino,
     subject: assunto,
-    text: texto,
+     html: textoEmailHTML,
   };
 
   transporter.sendMail(mailOptions, (error, info) => {
@@ -131,9 +131,14 @@ app.post('/api/pagar', async (req, res) => {
     // --- AQUI: chama o envio do email assim que a compra for confirmada ---
     if (email) {
       const nomeCliente = nome || 'cliente';
-      const textoEmail = `Olá ${nomeCliente}, seu pedido foi recebido com sucesso! Referência: ${reference}. Valor: MZN ${amount}. Obrigado pela compra!`;
+      const textoEmailHTML = `
+  <p>Olá ${nomeCliente}, seu pedido foi recebido com sucesso!</p>
+  <p>Referência: ${reference}. Valor: MZN ${amount}.</p>
+  <p>Obrigado pela compra!</p>
+  <p>Para acessar o produto, clique no link: <a href="https://club.membify.com.br/app" target="_blank">Acessar produto</a></p>
+`;
 
-      enviarEmail(email, 'Compra Confirmada!', textoEmail);
+     enviarEmail(email, 'Compra Confirmada!', textoEmailHTML);
     }
 
     res.json({ status: 'ok', data: response.data });
