@@ -57,9 +57,6 @@ function enviarEmail(destino, assunto, conteudoHTML) {
     }
   });
 }
-
-const { google } = require('googleapis');
-
 async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, reference }) {
   // Parse do JSON das credenciais direto da variável de ambiente
   const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
