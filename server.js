@@ -69,7 +69,6 @@ app.post('/api/pagar', async (req, res) => {
   await axios.post(
   `https://graph.facebook.com/v19.0/${fbPixelId}/events`,
   {
-    test_event_code: 'TEST46450', // 👈 AQUI está seu test code
     data: [
       {
         event_name: 'Purchase',
