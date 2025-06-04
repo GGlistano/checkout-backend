@@ -2,6 +2,7 @@ const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const crypto = require('crypto');
+const nodemailer = require('nodemailer'); // já importado
 require('dotenv').config();
 
 const app = express();
@@ -14,12 +15,41 @@ const PORT = process.env.PORT || 3000;
 console.log('CLIENT_ID:', process.env.CLIENT_ID ? '✔️ set' : '❌ missing');
 console.log('MPESA_TOKEN:', process.env.MPESA_TOKEN ? '✔️ set' : '❌ missing');
 
+// Função SHA256 (já tem no seu código)
 function sha256(input) {
   return crypto.createHash('sha256').update(input).digest('hex');
 }
 
+// --- CONFIGURAÇÃO DO NODEMAILER (colocar aqui, junto das imports) ---
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,         // coloca seu email no .env, ex: EMAIL_USER=seu-email@gmail.com
+    pass: process.env.EMAIL_PASS_APP,     // senha de app do Gmail no .env, ex: EMAIL_PASS_APP=xxxxxx
+  },
+});
+
+// Função para enviar email
+function enviarEmail(destino, assunto, texto) {
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: destino,
+    subject: assunto,
+    text: texto,
+  };
+
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.error('Erro ao enviar e-mail:', error);
+    } else {
+      console.log('E-mail enviado:', info.response);
+    }
+  });
+}
+
+// Rota do pagamento
 app.post('/api/pagar', async (req, res) => {
-  const { phone, amount, reference, metodo, email } = req.body;
+  const { phone, amount, reference, metodo, email, nome, pedido } = req.body; // Pegue nome e pedido também se tiver
 
   console.log('Request body:', req.body);
 
@@ -60,37 +90,37 @@ app.post('/api/pagar', async (req, res) => {
 
     console.log('Resposta da API externa:', response.data);
 
-    // 🔥 Enviar evento para o Facebook
+    // Enviar evento para o Facebook (já tem)
     const fbPixelId = process.env.FB_PIXEL_ID;
     const fbAccessToken = process.env.FB_ACCESS_TOKEN;
 
     if (fbPixelId && fbAccessToken && email && phone) {
       try {
-  await axios.post(
-  `https://graph.facebook.com/v19.0/${fbPixelId}/events`,
-  {
-    data: [
-      {
-        event_name: 'Purchase',
-        event_time: Math.floor(Date.now() / 1000),
-        action_source: 'website',
-        user_data: {
-          em: sha256(email.trim().toLowerCase()),
-          ph: sha256(phone.replace(/\D/g, '')),
-        },
-        custom_data: {
-          currency: 'MZN',
-          value: amount
-        }
-      }
-    ]
-  },
-  {
-    headers: {
-      Authorization: `Bearer ${fbAccessToken}`
-    }
-  }
-);
+        await axios.post(
+          `https://graph.facebook.com/v19.0/${fbPixelId}/events`,
+          {
+            data: [
+              {
+                event_name: 'Purchase',
+                event_time: Math.floor(Date.now() / 1000),
+                action_source: 'website',
+                user_data: {
+                  em: sha256(email.trim().toLowerCase()),
+                  ph: sha256(phone.replace(/\D/g, '')),
+                },
+                custom_data: {
+                  currency: 'MZN',
+                  value: amount,
+                },
+              },
+            ],
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${fbAccessToken}`,
+            },
+          }
+        );
 
         console.log('🎯 Evento de purchase enviado para o Facebook');
       } catch (fbErr) {
@@ -98,14 +128,20 @@ app.post('/api/pagar', async (req, res) => {
       }
     }
 
-    res.json({ status: 'ok', data: response.data });
+    // --- AQUI: chama o envio do email assim que a compra for confirmada ---
+    if (email) {
+      const nomeCliente = nome || 'cliente';
+      const textoEmail = `Olá ${nomeCliente}, seu pedido foi recebido com sucesso! Referência: ${reference}. Valor: MZN ${amount}. Obrigado pela compra!`;
 
+      enviarEmail(email, 'Compra Confirmada!', textoEmail);
+    }
+
+    res.json({ status: 'ok', data: response.data });
   } catch (err) {
     console.error('Erro na requisição externa:', err.response?.data || err.message);
     res.status(500).json({ status: 'error', message: err.response?.data || err.message });
   }
 });
-// ... todo teu app.post('/api/pagar', ...) aqui certinho
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
