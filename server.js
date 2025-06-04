@@ -65,7 +65,6 @@ app.post('/api/pagar', async (req, res) => {
   if (!phone || !amount || !reference || !metodo) {
     return res.status(400).json({ status: 'error', message: 'phone, amount, reference e metodo são obrigatórios' });
   }
-
   let walletId, token;
   if (metodo === 'mpesa') {
     walletId = process.env.MPESA_WALLET_ID;
