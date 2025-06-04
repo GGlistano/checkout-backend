@@ -59,6 +59,10 @@ app.post('/api/pagar', async (req, res) => {
     console.error('Erro na requisição externa:', err.response?.data || err.message);
     res.status(500).json({ status: 'error', message: err.response?.data || err.message });
   }
+// ... todo teu app.post('/api/pagar', ...) aqui certinho
+
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
 
-});
+
