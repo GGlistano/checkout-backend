@@ -14,17 +14,30 @@ console.log('CLIENT_ID:', process.env.CLIENT_ID ? '✔️ set' : '❌ missing');
 console.log('MPESA_TOKEN:', process.env.MPESA_TOKEN ? '✔️ set' : '❌ missing');
 
 app.post('/api/pagar', async (req, res) => {
-  const { phone, amount, reference } = req.body;
+  const { phone, amount, reference, metodo } = req.body;
 
   console.log('Request body:', req.body);
 
-  if (!phone || !amount || !reference) {
-    return res.status(400).json({ status: 'error', message: 'phone, amount and reference are required' });
+  if (!phone || !amount || !reference || !metodo) {
+    return res.status(400).json({ status: 'error', message: 'phone, amount, reference e metodo são obrigatórios' });
   }
+
+  let walletId, token;
+  if (metodo === 'mpesa') {
+    walletId = process.env.MPESA_WALLET_ID;
+    token = process.env.MPESA_TOKEN;
+  } else if (metodo === 'emola') {
+    walletId = process.env.EMOLA_WALLET_ID;
+    token = process.env.EMOLA_TOKEN;
+  } else {
+    return res.status(400).json({ status: 'error', message: 'Método inválido. Use mpesa ou emola.' });
+  }
+
+  const url = `https://e2payments.explicador.co.mz/v1/c2b/${metodo}-payment/${walletId}`;
 
   try {
     const response = await axios.post(
-      'https://e2payments.explicador.co.mz/v1/c2b/mpesa-payment/542813',
+      url,
       {
         client_id: process.env.CLIENT_ID,
         amount: amount.toString(),
@@ -33,7 +46,7 @@ app.post('/api/pagar', async (req, res) => {
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.MPESA_TOKEN}`,
+          Authorization: `Bearer ${token}`,
           Accept: 'application/json',
           'Content-Type': 'application/json',
         },
@@ -41,7 +54,6 @@ app.post('/api/pagar', async (req, res) => {
     );
 
     console.log('Resposta da API externa:', response.data);
-
     res.json({ status: 'ok', data: response.data });
   } catch (err) {
     console.error('Erro na requisição externa:', err.response?.data || err.message);
@@ -49,6 +61,4 @@ app.post('/api/pagar', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
