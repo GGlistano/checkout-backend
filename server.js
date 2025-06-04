@@ -66,31 +66,33 @@ app.post('/api/pagar', async (req, res) => {
 
     if (fbPixelId && fbAccessToken && email && phone) {
       try {
-        await axios.post(
-          `https://graph.facebook.com/v19.0/${fbPixelId}/events`,
-          {
-            data: [
-              {
-                event_name: 'Purchase',
-                event_time: Math.floor(Date.now() / 1000),
-                action_source: 'website',
-                user_data: {
-                  em: sha256(email.trim().toLowerCase()),
-                  ph: sha256(phone.replace(/\D/g, '')),
-                },
-                custom_data: {
-                  currency: 'MZN',
-                  value: amount
-                }
-              }
-            ]
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${fbAccessToken}`
-            }
-          }
-        );
+  await axios.post(
+  `https://graph.facebook.com/v19.0/${fbPixelId}/events`,
+  {
+    test_event_code: 'TEST46450', // 👈 AQUI está seu test code
+    data: [
+      {
+        event_name: 'Purchase',
+        event_time: Math.floor(Date.now() / 1000),
+        action_source: 'website',
+        user_data: {
+          em: sha256(email.trim().toLowerCase()),
+          ph: sha256(phone.replace(/\D/g, '')),
+        },
+        custom_data: {
+          currency: 'MZN',
+          value: amount
+        }
+      }
+    ]
+  },
+  {
+    headers: {
+      Authorization: `Bearer ${fbAccessToken}`
+    }
+  }
+);
+
         console.log('🎯 Evento de purchase enviado para o Facebook');
       } catch (fbErr) {
         console.error('❌ Erro ao enviar evento pro Facebook:', fbErr.response?.data || fbErr.message);
