@@ -3,6 +3,9 @@ const axios = require('axios');
 const cors = require('cors');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer'); // já importado
+const { google } = require('googleapis');
+const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
@@ -55,6 +58,37 @@ function enviarEmail(destino, assunto, conteudoHTML) {
   });
 }
 
+const { google } = require('googleapis');
+
+async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, reference }) {
+  // Parse do JSON das credenciais direto da variável de ambiente
+  const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+
+  const auth = new google.auth.GoogleAuth({
+    credentials,
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+
+  const sheets = google.sheets({ version: 'v4', auth: await auth.getClient() });
+
+  const spreadsheetId = '1cQEOFLQjNkVyI27jHluGnUxlapg0e-9wcPAXxaepZJc'; // substitua pelo ID da sua planilha
+
+  const dataAtual = new Date().toLocaleString('pt-BR', { timeZone: 'Africa/Maputo' });
+
+  const novaLinha = [[nome, email, phone, metodo, amount, reference, dataAtual]];
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: 'A1',
+    valueInputOption: 'RAW',
+    insertDataOption: 'INSERT_ROWS',
+    requestBody: {
+      values: novaLinha,
+    },
+  });
+
+  console.log('📊 Dados adicionados na planilha');
+}
 
 // Rota do pagamento
 app.post('/api/pagar', async (req, res) => {
@@ -148,6 +182,20 @@ app.post('/api/pagar', async (req, res) => {
   `;
 
   enviarEmail(email, 'Compra Confirmada!', textoEmailHTML);
+}
+      // Agora adiciona na planilha
+  try {
+    await adicionarNaPlanilha({
+      nome: nomeCliente,
+      email,
+      phone,
+      metodo,
+      amount,
+      reference,
+    });
+  } catch (err) {
+    console.error('Erro ao adicionar dados na planilha:', err);
+  }
 }
 
 
