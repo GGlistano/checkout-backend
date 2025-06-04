@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
+const crypto = require('crypto');
 require('dotenv').config();
 
 const app = express();
@@ -13,8 +14,12 @@ const PORT = process.env.PORT || 3000;
 console.log('CLIENT_ID:', process.env.CLIENT_ID ? '✔️ set' : '❌ missing');
 console.log('MPESA_TOKEN:', process.env.MPESA_TOKEN ? '✔️ set' : '❌ missing');
 
+function sha256(input) {
+  return crypto.createHash('sha256').update(input).digest('hex');
+}
+
 app.post('/api/pagar', async (req, res) => {
-  const { phone, amount, reference, metodo } = req.body;
+  const { phone, amount, reference, metodo, email } = req.body;
 
   console.log('Request body:', req.body);
 
@@ -54,12 +59,51 @@ app.post('/api/pagar', async (req, res) => {
     );
 
     console.log('Resposta da API externa:', response.data);
+
+    // 🔥 Enviar evento para o Facebook
+    const fbPixelId = process.env.FB_PIXEL_ID;
+    const fbAccessToken = process.env.FB_ACCESS_TOKEN;
+
+    if (fbPixelId && fbAccessToken && email && phone) {
+      try {
+        await axios.post(
+          `https://graph.facebook.com/v19.0/${fbPixelId}/events`,
+          {
+            data: [
+              {
+                event_name: 'Purchase',
+                event_time: Math.floor(Date.now() / 1000),
+                action_source: 'website',
+                user_data: {
+                  em: sha256(email.trim().toLowerCase()),
+                  ph: sha256(phone.replace(/\D/g, '')),
+                },
+                custom_data: {
+                  currency: 'MZN',
+                  value: amount
+                }
+              }
+            ]
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${fbAccessToken}`
+            }
+          }
+        );
+        console.log('🎯 Evento de purchase enviado para o Facebook');
+      } catch (fbErr) {
+        console.error('❌ Erro ao enviar evento pro Facebook:', fbErr.response?.data || fbErr.message);
+      }
+    }
+
     res.json({ status: 'ok', data: response.data });
+
   } catch (err) {
     console.error('Erro na requisição externa:', err.response?.data || err.message);
     res.status(500).json({ status: 'error', message: err.response?.data || err.message });
   }
-  });
+});
 // ... todo teu app.post('/api/pagar', ...) aqui certinho
 
 app.listen(PORT, () => {
