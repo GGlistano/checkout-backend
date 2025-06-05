@@ -57,7 +57,7 @@ function enviarEmail(destino, assunto, conteudoHTML) {
     }
   });
 }
-async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, reference }) {
+async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, reference,utm_source,utm_medium,utm_campaign,utm_term,utm_content }) {
   // Parse do JSON das credenciais direto da variável de ambiente
   const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
 
@@ -72,7 +72,7 @@ async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, referen
 
   const dataAtual = new Date().toLocaleString('pt-BR', { timeZone: 'Africa/Maputo' });
 
-  const novaLinha = [[nome, email, phone, metodo, amount, reference, dataAtual]];
+  const novaLinha = [[nome, email, phone, metodo, amount, reference, dataAtual,utm_source,utm_medium,utm_campaign,utm_term,utm_content]];
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
@@ -202,13 +202,18 @@ app.post('/api/pagar', async (req, res) => {
     // Adicionar na planilha
     try {
       await adicionarNaPlanilha({
-        nome: nomeCliente,
-        email,
-        phone,
-        metodo,
-        amount,
-        reference,
-      });
+  nome: nomeCliente,
+  email,
+  phone,
+  metodo,
+  amount,
+  reference,
+  utm_source,
+  utm_medium,
+  utm_campaign,
+  utm_term,
+  utm_content
+});
     } catch (err) {
       console.error('Erro ao adicionar dados na planilha:', err);
     }
