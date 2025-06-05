@@ -89,9 +89,20 @@ async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, referen
 
 // Rota do pagamento
 app.post('/api/pagar', async (req, res) => {
-  const { phone, amount, reference, metodo, email, nome, pedido } = req.body;
+  const {
+    phone, amount, reference, metodo, email, nome, pedido,
+    utm_source, utm_medium, utm_campaign, utm_term, utm_content
+  } = req.body;
 
   console.log('Request body:', req.body);
+
+  console.log('UTMs capturados:', {
+    utm_source,
+    utm_medium,
+    utm_campaign,
+    utm_term,
+    utm_content
+  });
 
   if (!phone || !amount || !reference || !metodo) {
     return res.status(400).json({
