@@ -223,7 +223,7 @@ app.post('/api/pagar', async (req, res) => {
         ? phone
         : `258${phone.replace(/^0/, '')}`;
 
-      const mensagem = `Olá ${nomeCliente}! 👋\n\nSeu pedido foi recebido com sucesso! 🛒\n\n📌 Referência: *${reference}*\n💰 Valor: *MZN ${amount}*\n\nAcesse seu produto clicando abaixo:\n👉 https://club.membify.com.br/app\n\nSe precisar de ajuda, estamos por aqui!`;
+      const mensagem = `Olá ${nomeCliente}! 👋\n\nSua transação foi aprovada com sucesso 🛒\n\n📌 Referência: *${reference}*\n💰 Valor: *MZN ${amount}*\n\nAcesse seu produto clicando abaixo:\n👉 https://profound-valkyrie-c2f3cd.netlify.app\n\nSe precisar de ajuda, estamos por aqui!`;
 
       await axios.post(
   'https://api.z-api.io/instances/3E253C0E919CB028543B1A5333D349DF/token/4909422EC4EB52D5FAFB7AB1/send-text',
