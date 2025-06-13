@@ -91,7 +91,7 @@ async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, referen
 app.post('/api/pagar', async (req, res) => {
   const {
     phone, amount, reference, metodo, email, nome, pedido,
-    utm_source, utm_medium, utm_campaign, utm_term, utm_content
+    utm_source, utm_medium, utm_campaign, utm_term, utm_content, fbc, fbp
   } = req.body;
 
   console.log('Request body:', req.body);
@@ -162,9 +162,11 @@ app.post('/api/pagar', async (req, res) => {
                 event_time: Math.floor(Date.now() / 1000),
                 action_source: 'website',
                 user_data: {
-                  em: sha256(email.trim().toLowerCase()),
-                  ph: sha256(phone.replace(/\D/g, '')),
-                },
+  em: email ? sha256(email.trim().toLowerCase()) : undefined,
+  ph: phone ? sha256(phone.replace(/\D/g, '')) : undefined,
+  fbp: fbp || undefined,
+  fbc: fbc || undefined,
+},
                 custom_data: {
                   currency: 'MZN',
                   value: amount,
