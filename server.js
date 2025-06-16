@@ -76,7 +76,11 @@ async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, referen
 }
 
 initializeApp({
-  credential: cert(JSON.parse(process.env.FIREBASE_CREDENTIALS)),
+  credential: cert(
+    JSON.parse(
+      process.env.FIREBASE_CREDENTIALS.replace(/\\n/g, '\n')
+    )
+  ),
 });
 const db = getFirestore();
 
