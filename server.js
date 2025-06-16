@@ -2,8 +2,10 @@ const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer'); // já importado
+const nodemailer = require('nodemailer');
 const { google } = require('googleapis');
+const { initializeApp, cert } = require('firebase-admin/app');
+const { getFirestore } = require('firebase-admin/firestore');
 const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
@@ -14,34 +16,22 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-// Loga as variáveis pra garantir que tão chegando no ambiente de deploy
 console.log('CLIENT_ID:', process.env.CLIENT_ID ? '✔️ set' : '❌ missing');
 console.log('MPESA_TOKEN:', process.env.MPESA_TOKEN ? '✔️ set' : '❌ missing');
 
-// Função SHA256 (já tem no seu código)
 function sha256(input) {
   return crypto.createHash('sha256').update(input).digest('hex');
 }
 
-// --- CONFIGURAÇÃO DO NODEMAILER (colocar aqui, junto das imports) ---
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER,         // coloca seu email no .env, ex: EMAIL_USER=seu-email@gmail.com
-    pass: process.env.EMAIL_PASS_APP,     // senha de app do Gmail no .env, ex: EMAIL_PASS_APP=xxxxxx
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS_APP,
   },
 });
 
-// Função para enviar email
 function enviarEmail(destino, assunto, conteudoHTML) {
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS_APP,
-    },
-  });
-
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: destino,
@@ -57,8 +47,8 @@ function enviarEmail(destino, assunto, conteudoHTML) {
     }
   });
 }
-async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, reference,utm_source,utm_medium,utm_campaign,utm_term,utm_content }) {
-  // Parse do JSON das credenciais direto da variável de ambiente
+
+async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, reference, utm_source, utm_medium, utm_campaign, utm_term, utm_content }) {
   const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
 
   const auth = new google.auth.GoogleAuth({
@@ -67,12 +57,10 @@ async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, referen
   });
 
   const sheets = google.sheets({ version: 'v4', auth: await auth.getClient() });
-
-  const spreadsheetId = '1cQEOFLQjNkVyI27jHluGnUxlapg0e-9wcPAXxaepZJc'; // substitua pelo ID da sua planilha
-
+  const spreadsheetId = '1cQEOFLQjNkVyI27jHluGnUxlapg0e-9wcPAXxaepZJc';
   const dataAtual = new Date().toLocaleString('pt-BR', { timeZone: 'Africa/Maputo' });
 
-  const novaLinha = [[nome, email, phone, metodo, amount, reference, dataAtual,utm_source,utm_medium,utm_campaign,utm_term,utm_content]];
+  const novaLinha = [[nome, email, phone, metodo, amount, reference, dataAtual, utm_source, utm_medium, utm_campaign, utm_term, utm_content]];
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
@@ -87,7 +75,33 @@ async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, referen
   console.log('📊 Dados adicionados na planilha');
 }
 
-// Rota do pagamento
+initializeApp({
+  credential: cert(JSON.parse(process.env.FIREBASE_CREDENTIALS)),
+});
+const db = getFirestore();
+
+async function salvarCompra({ nome, email, phone, metodo, amount, reference, utm_source, utm_medium, utm_campaign, utm_term, utm_content }) {
+  const dados = {
+    nome,
+    email,
+    phone,
+    metodo,
+    amount,
+    reference,
+    created_at: new Date(),
+    utm: {
+      source: utm_source || '',
+      medium: utm_medium || '',
+      campaign: utm_campaign || '',
+      term: utm_term || '',
+      content: utm_content || '',
+    },
+  };
+
+  const docRef = await db.collection('compras').add(dados);
+  console.log(`✅ Compra salva no Firebase com ID: ${docRef.id}`);
+}
+
 app.post('/api/pagar', async (req, res) => {
   const {
     phone, amount, reference, metodo, email, nome, pedido,
@@ -95,14 +109,7 @@ app.post('/api/pagar', async (req, res) => {
   } = req.body;
 
   console.log('Request body:', req.body);
-
-  console.log('UTMs capturados:', {
-    utm_source,
-    utm_medium,
-    utm_campaign,
-    utm_term,
-    utm_content
-  });
+  console.log('UTMs capturados:', { utm_source, utm_medium, utm_campaign, utm_term, utm_content });
 
   if (!phone || !amount || !reference || !metodo) {
     return res.status(400).json({
@@ -147,7 +154,6 @@ app.post('/api/pagar', async (req, res) => {
 
     console.log('Resposta da API externa:', response.data);
 
-    // Enviar evento para o Facebook
     const fbPixelId = process.env.FB_PIXEL_ID;
     const fbAccessToken = process.env.FB_ACCESS_TOKEN;
 
@@ -162,11 +168,11 @@ app.post('/api/pagar', async (req, res) => {
                 event_time: Math.floor(Date.now() / 1000),
                 action_source: 'website',
                 user_data: {
-  em: email ? sha256(email.trim().toLowerCase()) : undefined,
-  ph: phone ? sha256(phone.replace(/\D/g, '')) : undefined,
-  fbp: fbp || undefined,
-  fbc: fbc || undefined,
-},
+                  em: email ? sha256(email.trim().toLowerCase()) : undefined,
+                  ph: phone ? sha256(phone.replace(/\D/g, '')) : undefined,
+                  fbp: fbp || undefined,
+                  fbc: fbc || undefined,
+                },
                 custom_data: {
                   currency: 'MZN',
                   value: amount,
@@ -186,7 +192,6 @@ app.post('/api/pagar', async (req, res) => {
       }
     }
 
-    // Enviar e-mail se tiver email
     const nomeCliente = nome || 'Cliente';
 
     if (email) {
@@ -201,52 +206,33 @@ app.post('/api/pagar', async (req, res) => {
       enviarEmail(email, 'Compra Confirmada!', textoEmailHTML);
     }
 
-    // Adicionar na planilha
     try {
-      await adicionarNaPlanilha({
-  nome: nomeCliente,
-  email,
-  phone,
-  metodo,
-  amount,
-  reference,
-  utm_source,
-  utm_medium,
-  utm_campaign,
-  utm_term,
-  utm_content
-});
+      await adicionarNaPlanilha({ nome: nomeCliente, email, phone, metodo, amount, reference, utm_source, utm_medium, utm_campaign, utm_term, utm_content });
     } catch (err) {
       console.error('Erro ao adicionar dados na planilha:', err);
     }
-    // Enviar WhatsApp via Z-API
-    try {
-      const telefoneFormatado = phone.startsWith('258')
-        ? phone
-        : `258${phone.replace(/^0/, '')}`;
 
+    try {
+      await salvarCompra({ nome: nomeCliente, email, phone, metodo, amount, reference, utm_source, utm_medium, utm_campaign, utm_term, utm_content });
+    } catch (err) {
+      console.error('❌ Erro ao salvar no Firebase:', err);
+    }
+
+    try {
+      const telefoneFormatado = phone.startsWith('258') ? phone : `258${phone.replace(/^0/, '')}`;
       const mensagem = `Olá ${nomeCliente}! 👋\n\nSua transação foi aprovada com sucesso 🛒\n\n📌 Referência: *${reference}*\n💰 Valor: *MZN ${amount}*\n\nAcesse seu produto clicando abaixo:\n👉 https://profound-valkyrie-c2f3cd.netlify.app\n\nSe precisar de ajuda, estamos por aqui!`;
 
       await axios.post(
-  'https://api.z-api.io/instances/3E253C0E919CB028543B1A5333D349DF/token/4909422EC4EB52D5FAFB7AB1/send-text',
-  {
-    phone: telefoneFormatado,
-    message: mensagem,
-  },
-  {
-    headers: {
-      'Client-Token': 'F1850a1deea6b422c9fa8baf8407628c5S',
-    },
-  }
-);
-
+        'https://api.z-api.io/instances/3E253C0E919CB028543B1A5333D349DF/token/4909422EC4EB52D5FAFB7AB1/send-text',
+        { phone: telefoneFormatado, message: mensagem },
+        { headers: { 'Client-Token': 'F1850a1deea6b422c9fa8baf8407628c5S' } }
+      );
 
       console.log('✅ Mensagem enviada via WhatsApp (Z-API)');
     } catch (err) {
       console.error('❌ Erro ao enviar mensagem pelo WhatsApp:', err.response?.data || err.message);
     }
 
-    // Retorno da API
     res.json({ status: 'ok', data: response.data });
   } catch (err) {
     console.error('Erro na requisição externa:', err.response?.data || err.message);
@@ -257,5 +243,3 @@ app.post('/api/pagar', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
-
-
