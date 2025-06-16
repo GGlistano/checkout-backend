@@ -231,6 +231,24 @@ app.post('/api/pagar', async (req, res) => {
     } catch (err) {
       console.error('❌ Erro ao salvar no Firebase:', err);
     }
+    try {
+      const userRef = db.collection('usuarios');
+      const q = await userRef.where('telefone', '==', phone).get();
+
+      if (q.empty) {
+        await userRef.add({
+          nome: nomeCliente,
+          telefone: phone,
+          saldo: 200,
+          dataCadastro: new Date(),
+        });
+        console.log(`📥 Novo usuário salvo em 'usuarios': ${nomeCliente}`);
+      } else {
+        console.log('👀 Usuário já existe na coleção "usuarios"');
+      }
+    } catch (err) {
+      console.error('❌ Erro ao salvar usuário em "usuarios":', err);
+    }
 
     try {
       const telefoneFormatado = phone.startsWith('258') ? phone : `258${phone.replace(/^0/, '')}`;
