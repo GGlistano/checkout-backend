@@ -91,13 +91,7 @@ async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, referen
   console.log('📊 Dados adicionados na planilha');
 }
 
-initializeApp({
-  credential: cert(
-    JSON.parse(
-      process.env.FIREBASE_CREDENTIALS.replace(/\\n/g, '\n')
-    )
-  ),
-});
+
 const db = getFirestore();
 
 async function salvarCompra({ nome, email, phone, metodo, amount, reference, utm_source, utm_medium, utm_campaign, utm_term, utm_content }) {
