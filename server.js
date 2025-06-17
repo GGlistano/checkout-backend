@@ -252,7 +252,18 @@ app.post('/api/pagar', async (req, res) => {
 
     try {
       const telefoneFormatado = phone.startsWith('258') ? phone : `258${phone.replace(/^0/, '')}`;
-      const mensagem = `Olá ${nomeCliente}! 👋\n\nSua transação foi aprovada com sucesso 🛒\n\n📌 Referência: *${reference}*\n💰 Valor: *MZN ${amount}*\n\nAcesse seu produto clicando abaixo:\n👉 https://profound-valkyrie-c2f3cd.netlify.app\n\nSe precisar de ajuda, estamos por aqui!`;
+      const mensagem = `👋 Olá ${nomeCliente}!
+
+✅ Sua compra foi confirmada com sucesso.
+
+📌 Referência: *${reference}*  
+💵 Valor: *MZN ${amount}*
+
+🧠 Para acessar seu conteúdo exclusivo, clique no link abaixo e preencha com os mesmos dados que usou no pagamento (nome e número que usou para efectuar o pagamento): 
+
+👉 https://quiet-youtiao-d2f6f8.netlify.app
+
+Se tiver dúvidas, é só responder por aqui. Boa jornada! 🚀`;
 
       await axios.post(
         'https://api.z-api.io/instances/3E253C0E919CB028543B1A5333D349DF/token/4909422EC4EB52D5FAFB7AB1/send-text',
