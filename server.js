@@ -99,7 +99,7 @@ async function salvarCompra({ nome, email, phone, whatsapp, metodo, amount, refe
     nome,
     email,
     phone,
-    whatsapp,
+    whatsapp: whatsapp || '',
     metodo,
     amount,
     reference,
