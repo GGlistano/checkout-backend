@@ -94,11 +94,12 @@ async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, referen
 
 const db = getFirestore();
 
-async function salvarCompra({ nome, email, phone, metodo, amount, reference, utm_source, utm_medium, utm_campaign, utm_term, utm_content }) {
+async function salvarCompra({ nome, email, phone, whatsapp, metodo, amount, reference, utm_source, utm_medium, utm_campaign, utm_term, utm_content }) {
   const dados = {
     nome,
     email,
     phone,
+    whatsapp,
     metodo,
     amount,
     reference,
@@ -118,7 +119,7 @@ async function salvarCompra({ nome, email, phone, metodo, amount, reference, utm
 
 app.post('/api/pagar', async (req, res) => {
   const {
-    phone, amount, reference, metodo, email, nome, pedido,
+    phone, amount, reference, metodo, email, nome, pedido, whatsapp,
     utm_source, utm_medium, utm_campaign, utm_term, utm_content, fbc, fbp
   } = req.body;
 
@@ -251,7 +252,7 @@ app.post('/api/pagar', async (req, res) => {
     }
 
     try {
-      const telefoneFormatado = phone.startsWith('258') ? phone : `258${phone.replace(/^0/, '')}`;
+      const telefoneDestino = whatsapp.startsWith('258') ? whatsapp : `258${whatsapp.replace(/^0/, '')}`;
      const mensagem = `👋 Olá ${nomeCliente}!
 
 ✅ Sua compra foi confirmada com sucesso.
@@ -267,7 +268,7 @@ Se tiver dúvidas, é só responder por aqui. Boa jornada! 🚀`;
 
       await axios.post(
         'https://api.z-api.io/instances/3E253C0E919CB028543B1A5333D349DF/token/4909422EC4EB52D5FAFB7AB1/send-text',
-        { phone: telefoneFormatado, message: mensagem },
+        { phone: telefoneDestino, message: mensagem },
         { headers: { 'Client-Token': 'F1850a1deea6b422c9fa8baf8407628c5S' } }
       );
 
