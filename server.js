@@ -252,16 +252,16 @@ app.post('/api/pagar', async (req, res) => {
 
     try {
       const telefoneFormatado = phone.startsWith('258') ? phone : `258${phone.replace(/^0/, '')}`;
-      const mensagem = `👋 Olá ${nomeCliente}!
+     const mensagem = `👋 Olá ${nomeCliente}!
 
 ✅ Sua compra foi confirmada com sucesso.
 
 📌 Referência: *${reference}*  
 💵 Valor: *MZN ${amount}*
 
-🧠 Para acessar seu conteúdo exclusivo, clique no link abaixo e preencha com os mesmos dados que usou no pagamento (nome e número que usou para efectuar o pagamento): 
+🧠 Para acessar seu conteúdo exclusivo, clique no link abaixo e preencha com os mesmos dados que usou no pagamento (nome e número que usou para efectuar o pagamento):
 
-👉 https://quiet-youtiao-d2f6f8.netlify.app
+https://quiet-youtiao-d2f6f8.netlify.app
 
 Se tiver dúvidas, é só responder por aqui. Boa jornada! 🚀`;
 
