@@ -111,11 +111,13 @@ async function salvarCompra({ nome, email, phone, whatsapp, metodo, amount, refe
       term: utm_term || '',
       content: utm_content || '',
     },
+    source: 'checkout2' // pode ser checkout1, checkout3, etc.
   };
 
-  const docRef = await db.collection('compras').add(dados);
-  console.log(`✅ Compra salva no Firebase com ID: ${docRef.id}`);
+  const docRef = await db.collection('compras_checkout2').add(dados);
+  console.log(`✅ Compra salva na coleção 'compras_checkout2' com ID: ${docRef.id}`);
 }
+
 
 app.post('/api/pagar', async (req, res) => {
   const {
