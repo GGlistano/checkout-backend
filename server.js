@@ -94,14 +94,13 @@ async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, referen
 
 const db = getFirestore();
 // 👇 Função que salva as transações falhadas
-async function salvarTransacaoFalhada({ phone, metodo, reference, erro, codigoErro }) {
+async function salvarTransacaoFalhada({ phone, metodo, reference, erro }) {
   try {
     await db.collection("transacoes_falhadas").add({
       phone,
       metodo,
       reference,
       erro,
-      codigoErro: codigoErro || 'unknown',
       status: "falhou",
       created_at: new Date(),
     });
@@ -110,7 +109,6 @@ async function salvarTransacaoFalhada({ phone, metodo, reference, erro, codigoEr
     console.error("❌ Erro ao salvar transação falhada:", err);
   }
 }
-
 async function salvarCompra({ nome, email, phone, whatsapp, metodo, amount, reference, utm_source, utm_medium, utm_campaign, utm_term, utm_content }) {
   const dados = {
     nome,
@@ -297,24 +295,22 @@ Se tiver dúvidas, é só responder por aqui. Boa jornada! 🚀`;
 
     res.json({ status: 'ok', data: response.data });
   } catch (err) {
-  const codigoErro = err?.response?.status || 500;
-  const erroDetalhado = err?.response?.data?.message || err.message || "Erro desconhecido";
+    const erroDetalhado = err?.response?.data?.message || err.message || "Erro desconhecido";
 
-  console.error('Erro na requisição externa:', erroDetalhado);
+console.error('Erro na requisição externa:', erroDetalhado);
 
-  // Salvar falha no Firestore com erro e código
-  await salvarTransacaoFalhada({
-    phone,
-    metodo,
-    reference,
-    erro: erroDetalhado,
-    codigoErro
-  });
+// Salvar falha no Firestore
+await salvarTransacaoFalhada({
+  phone,
+  metodo,
+  reference,
+  erro: erroDetalhado
+});
 
-  res.status(500).json({ status: 'error', message: erroDetalhado });
-}
+res.status(500).json({ status: 'error', message: erroDetalhado });
 
-
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
