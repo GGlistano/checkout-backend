@@ -278,7 +278,7 @@ app.post('/api/pagar', async (req, res) => {
 
 🧠 Para acessar seu conteúdo exclusivo, clique no link abaixo e preencha com os mesmos dados que usou no pagamento (nome e número que usou para efectuar o pagamento):
 
-https://quiet-youtiao-d2f6f8.netlify.app
+https://superlative-croquembouche-ef1f1f.netlify.app/
 
 Se tiver dúvidas, é só responder por aqui. Boa jornada! 🚀`;
 
