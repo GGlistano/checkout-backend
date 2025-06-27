@@ -297,24 +297,23 @@ Se tiver dúvidas, é só responder por aqui. Boa jornada! 🚀`;
 
     res.json({ status: 'ok', data: response.data });
   } catch (err) {
-    const erroDetalhado = err?.response?.data?.message || err.message || "Erro desconhecido";
+  const codigoErro = err?.response?.status || 500;
+  const erroDetalhado = err?.response?.data?.message || err.message || "Erro desconhecido";
 
-console.error('Erro na requisição externa:', erroDetalhado);
+  console.error('Erro na requisição externa:', erroDetalhado);
 
-// Captura o código HTTP de erro (ex: 422, 504...) ou assume 500
-const codigoErro = err?.response?.status || 500;
-erroDetalhado = err?.response?.data?.message || err.message || "Erro desconhecido";
+  // Salvar falha no Firestore com erro e código
+  await salvarTransacaoFalhada({
+    phone,
+    metodo,
+    reference,
+    erro: erroDetalhado,
+    codigoErro
+  });
 
-// Salvar falha no Firestore com erro e código
-await salvarTransacaoFalhada({
-  phone,
-  metodo,
-  reference,
-  erro: erroDetalhado,
-  codigoErro
-});
+  res.status(500).json({ status: 'error', message: erroDetalhado });
+}
 
-res.status(500).json({ status: 'error', message: erroDetalhado });
 
 
 app.listen(PORT, () => {
