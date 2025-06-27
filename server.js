@@ -303,7 +303,7 @@ console.error('Erro na requisição externa:', erroDetalhado);
 
 // Captura o código HTTP de erro (ex: 422, 504...) ou assume 500
 const codigoErro = err?.response?.status || 500;
-const erroDetalhado = err?.response?.data?.message || err.message || "Erro desconhecido";
+let erroDetalhado = err?.response?.data?.message || err.message || "Erro desconhecido";
 
 // Salvar falha no Firestore com erro e código
 await salvarTransacaoFalhada({
