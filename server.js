@@ -276,11 +276,29 @@ app.post('/api/pagar', async (req, res) => {
       console.error('Erro ao adicionar dados na planilha:', err);
     }
 
-    try {
-      await salvarCompra({ nome: nomeCliente, email, phone, metodo, amount, reference, utm_source, utm_medium, utm_campaign, utm_term, utm_content });
-    } catch (err) {
-      console.error('❌ Erro ao salvar no Firebase:', err);
-    }
+   try {
+  const dadosCompra = {
+    nome: nomeCliente,
+    email,
+    phone,
+    metodo,
+    amount,
+    reference,
+    utm_source,
+    utm_medium,
+    utm_campaign,
+    utm_term,
+    utm_content
+  };
+
+  const colecao = req.body.recuperacao ? 'compras_recuperacao' : 'compras';
+
+  await db.collection(colecao).add(dadosCompra);
+  console.log(`💾 Compra salva na coleção '${colecao}'`);
+} catch (err) {
+  console.error('❌ Erro ao salvar no Firebase:', err);
+}
+
     try {
       const userRef = db.collection('usuarios');
       const q = await userRef.where('telefone', '==', phone).get();
