@@ -93,6 +93,40 @@ async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, referen
 
 
 const db = getFirestore();
+// Função de recuperação
+async function enviarMensagemWhatsAppRecuperacao(telefone, nomeCliente = '') {
+  try {
+    const telefoneFormatado = telefone.startsWith('258') ? telefone : `258${telefone.replace(/^0/, '')}`;
+
+    const mensagem = `⚠️ Olá${nomeCliente ? ' ' + nomeCliente : ''}! Parece que houve um erro na sua tentativa de pagamento…
+
+Mas temos uma notícia boa 🤑
+
+Conseguimos liberar um acesso especial: em vez de pagar 197 MZN, você pode acessar tudo por apenas **97 MZN** (por tempo limitado)!
+
+👉 Finalize aqui agora:
+https://SEU-CHECKOUT.com/97
+
+Se tiver dúvidas, é só responder por aqui. Estamos te esperando!`;
+
+    await axios.post(
+      'https://api.z-api.io/instances/3E253C0E7BA3B028DAC01664B40E8DC7/token/557A2D63524922D69AE44772/send-text',
+      {
+        phone: telefoneFormatado,
+        message: mensagem
+      },
+      {
+        headers: {
+          'Client-Token': 'F1850a1deea6b422c9fa8baf8407628c5S'
+        }
+      }
+    );
+
+    console.log('✅ Mensagem de recuperação enviada via WhatsApp');
+  } catch (err) {
+    console.error('❌ Erro ao enviar mensagem de recuperação:', err.response?.data || err.message);
+  }
+}
 // 👇 Função que salva as transações falhadas
 async function salvarTransacaoFalhada({ phone, metodo, reference, erro }) {
   try {
@@ -306,6 +340,11 @@ await salvarTransacaoFalhada({
   reference,
   erro: erroDetalhado
 });
+
+// ⏱️ Agenda envio de mensagem de recuperação
+setTimeout(() => {
+  enviarMensagemWhatsAppRecuperacao(phone, nome);
+}, 2 * 60 * 1000);
 
 res.status(500).json({ status: 'error', message: erroDetalhado });
 
