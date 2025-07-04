@@ -105,8 +105,7 @@ Mas temos uma notícia boa 🤑
 Conseguimos liberar um acesso especial: em vez de pagar 197 MZN, você pode acessar tudo por apenas **97 MZN** (por tempo limitado)!
 
 👉 Finalize aqui agora:
-https://SEU-CHECKOUT.com/97
-
+https://lifeboostsecrets.online/rec/
 Se tiver dúvidas, é só responder por aqui. Estamos te esperando!`;
 
     await axios.post(
