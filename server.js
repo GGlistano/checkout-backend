@@ -288,7 +288,8 @@ app.post('/api/pagar', async (req, res) => {
     utm_medium,
     utm_campaign,
     utm_term,
-    utm_content
+    utm_content,
+    createdAt: new Date() // <- ISSO É O QUE O DASH PRECISA PRA FUNCIONAR
   };
 
   const colecao = req.body.recuperacao ? 'compras_recuperacao' : 'compras';
