@@ -278,6 +278,24 @@ app.post('/api/pagar', async (req, res) => {
 
  try {
       await salvarCompra({ nome: nomeCliente, email, phone, metodo, amount, reference, utm_source, utm_medium, utm_campaign, utm_term, utm_content });
+     // Salvar também na coleção 'compras_recuperacao' se for recuperação
+  if (req.body.recuperacao) {
+    await db.collection('compras_recuperacao').add({
+      nome: nomeCliente,
+      email,
+      phone,
+      metodo,
+      amount,
+      reference,
+      utm_source,
+      utm_medium,
+      utm_campaign,
+      utm_term,
+      utm_content,
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    console.log("💾 Compra de recuperação salva na coleção 'compras_recuperacao'");
+  }
     } catch (err) {
       console.error('❌ Erro ao salvar no Firebase:', err);
     }
