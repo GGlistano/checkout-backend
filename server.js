@@ -4,6 +4,7 @@ const cors = require('cors');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const { google } = require('googleapis');
+const admin = require('firebase-admin');
 const { initializeApp, cert } = require('firebase-admin/app');
 const serviceAccount = {
   type: process.env.FIREBASE_TYPE,
