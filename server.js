@@ -328,11 +328,11 @@ app.post('/api/pagar', async (req, res) => {
 📌 Referência: *${reference}*  
 💵 Valor: *MZN ${amount}*
 
-🧠 Para acessar seu conteúdo exclusivo, clique no link abaixo e preencha com os mesmos dados que usou no pagamento (nome e número que usou para efectuar o pagamento):
+Para liberar o seu acesso à plataforma, clique no botão abaixo para enviar automaticamente a mensagem no nosso canal oficial com suporte via WhatsApp.
 
-https://superlative-croquembouche-ef1f1f.netlify.app/
+✅ Basta clicar em enviar e a Natália vai te acompanhar em todo o processo.
 
-Se tiver dúvidas, é só responder por aqui. Boa jornada! 🚀`;
+https://wa.me/258865984978?text=Ol%C3%A1%2C%20quero%20receber%20o%20meu%20acesso `;
 
       await axios.post(
         'https://api.z-api.io/instances/3E253C0E919CB028543B1A5333D349DF/token/4909422EC4EB52D5FAFB7AB1/send-text',
