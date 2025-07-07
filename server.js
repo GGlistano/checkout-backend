@@ -263,9 +263,9 @@ app.post('/api/pagar', async (req, res) => {
       const textoEmailHTML = `
         <p>Olá ${nomeCliente}, seu pedido foi recebido com sucesso!</p>
         <p>Referência: ${reference}. Valor: MZN ${amount}.</p>
-        <p>Obrigado pela compra!</p>
-        <p>Para acessar o produto, clique no link: 
-        <a href="https://club.membify.com.br/app" target="_blank">Acessar produto</a></p>
+        <p>É um enorme prazer te ter por aqui</p>
+        <p>Para acessar a sua conta, clique no link: 
+        <a href="https://wa.me/258865984978?text=Ol%C3%A1%2C%20quero%20receber%20o%20meu%20acesso " target="_blank">Acessar produto</a></p>
       `;
 
       enviarEmail(email, 'Compra Confirmada!', textoEmailHTML);
