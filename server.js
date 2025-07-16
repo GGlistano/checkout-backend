@@ -265,7 +265,7 @@ app.post('/api/pagar', async (req, res) => {
         <p>Referência: ${reference}. Valor: MZN ${amount}.</p>
         <p>É um enorme prazer te ter por aqui</p>
         <p>Para acessar a sua conta, clique no link: 
-        <a href="https://wa.me/258865984978?text=Ol%C3%A1%2C%20quero%20receber%20o%20meu%20acesso " target="_blank">Acessar produto</a></p>
+        <a href="https://wa.me/258863881471?text=Ol%C3%A1%2C%20quero%20receber%20o%20meu%20acesso " target="_blank">Acessar produto</a></p>
       `;
 
       enviarEmail(email, 'Compra Confirmada!', textoEmailHTML);
@@ -328,11 +328,8 @@ app.post('/api/pagar', async (req, res) => {
 📌 Referência: *${reference}*  
 💵 Valor: *MZN ${amount}*
 
-Para liberar o seu acesso à plataforma, clique no botão abaixo para enviar automaticamente a mensagem no nosso canal oficial com suporte via WhatsApp.
-
-✅ Basta clicar em enviar e a Natália vai te acompanhar em todo o processo.
-
-https://wa.me/258865984978?text=Ol%C3%A1%2C%20quero%20receber%20o%20meu%20acesso `;
+Aguarde alguns instantes e será contactado pelo nosso atendente para poder lhe dar acesso a sua conta na plataforma. Se passar de 30 minutos sem ser contactado ligue para
+863881471, atendemos chamadas todos os dias no período das 9h-17h. `;
 
       await axios.post(
         'https://api.z-api.io/instances/3E253C0E919CB028543B1A5333D349DF/token/4909422EC4EB52D5FAFB7AB1/send-text',
