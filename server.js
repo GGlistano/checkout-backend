@@ -81,11 +81,12 @@ async function notificarPushcut({ cliente, produto, valor }) {
         }
       }
     );
-    console.log('✅ Notificação enviada pro iPhone via Pushcut');
+    console.log('✅ Notificação Pushcut enviada');
   } catch (err) {
     console.error('❌ Erro ao enviar Pushcut:', err.response?.data || err.message);
   }
 }
+
 
 async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, reference, utm_source, utm_medium, utm_campaign, utm_term, utm_content }) {
   const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
@@ -382,8 +383,13 @@ await salvarTransacaoFalhada({
 setTimeout(() => {
   enviarMensagemWhatsAppRecuperacao(phone, nome);
 }, 2 * 60 * 1000);
-      // 🔥 Chama o Pushcut no final
-  await notificarPushcut({ cliente, produto, valor });
+    
+     await notificarPushcut({
+  cliente: nomeCliente,
+  produto: pedido || 'Produto Digital',
+  valor: `${amount} MZN`
+});
+
 
 res.status(500).json({ status: 'error', message: erroDetalhado });
 
