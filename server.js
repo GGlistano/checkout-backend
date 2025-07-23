@@ -64,6 +64,28 @@ function enviarEmail(destino, assunto, conteudoHTML) {
     }
   });
 }
+async function notificarPushcut({ cliente, produto, valor }) {
+  try {
+    await axios.post(
+      process.env.PUSHCUT_WEBHOOK_URL,
+      {
+        input: {
+          cliente,
+          produto,
+          valor
+        }
+      },
+      {
+        headers: {
+          'API-Key': process.env.PUSHCUT_API_KEY
+        }
+      }
+    );
+    console.log('✅ Notificação enviada pro iPhone via Pushcut');
+  } catch (err) {
+    console.error('❌ Erro ao enviar Pushcut:', err.response?.data || err.message);
+  }
+}
 
 async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, reference, utm_source, utm_medium, utm_campaign, utm_term, utm_content }) {
   const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
@@ -256,33 +278,6 @@ app.post('/api/pagar', async (req, res) => {
         console.error('❌ Erro ao enviar evento pro Facebook:', fbErr.response?.data || fbErr.message);
       }
     }
-const axios = require('axios');
-
-async function notificarPushcut({ cliente, produto, valor }) {
-  const apiKey = process.env.PUSHCUT_API_KEY;
-  const webhookUrl = process.env.PUSHCUT_WEBHOOK_URL;
-
-  try {
-    await axios.post(
-      webhookUrl,
-      {
-        input: {
-          cliente,
-          produto,
-          valor
-        }
-      },
-      {
-        headers: {
-          'API-Key': apiKey
-        }
-      }
-    );
-    console.log('✅ Pushcut: Notificação enviada com sucesso!');
-  } catch (error) {
-    console.error('❌ Pushcut: Erro ao enviar notificação:', error.response?.data || error.message);
-  }
-}
 
     const nomeCliente = nome || 'Cliente';
 
@@ -387,6 +382,8 @@ await salvarTransacaoFalhada({
 setTimeout(() => {
   enviarMensagemWhatsAppRecuperacao(phone, nome);
 }, 2 * 60 * 1000);
+      // 🔥 Chama o Pushcut no final
+  await notificarPushcut({ cliente, produto, valor });
 
 res.status(500).json({ status: 'error', message: erroDetalhado });
 
