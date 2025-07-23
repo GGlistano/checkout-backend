@@ -64,29 +64,17 @@ function enviarEmail(destino, assunto, conteudoHTML) {
     }
   });
 }
-async function notificarPushcut({ cliente, produto, valor }) {
+
+async function notificarPushcut() {
   try {
     await axios.post(
-      process.env.PUSHCUT_WEBHOOK_URL,
-      {
-        input: {
-          cliente,
-          produto,
-          valor
-        }
-      },
-      {
-        headers: {
-          'API-Key': process.env.PUSHCUT_API_KEY
-        }
-      }
+      'https://api.pushcut.io/Ug0n96qt-uMMwYFZRRHk_/notifications/Venda%20recebida'
     );
-    console.log('✅ Notificação Pushcut enviada');
+    console.log('✅ Pushcut enviado direto, sem payload');
   } catch (err) {
-    console.error('❌ Erro ao enviar Pushcut:', err.response?.data || err.message);
+    console.error('❌ Pushcut falhou:', err.response?.data || err.message);
   }
 }
-
 
 async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, reference, utm_source, utm_medium, utm_campaign, utm_term, utm_content }) {
   const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
@@ -361,6 +349,7 @@ https://wa.me/258858093864?text=ola,%20quero%20receber%20meu%20acceso!`;
       );
 
       console.log('✅ Mensagem enviada via WhatsApp (Z-API)');
+      await notificarPushcut();
     } catch (err) {
       console.error('❌ Erro ao enviar mensagem pelo WhatsApp:', err.response?.data || err.message);
     }
@@ -383,12 +372,6 @@ await salvarTransacaoFalhada({
 setTimeout(() => {
   enviarMensagemWhatsAppRecuperacao(phone, nome);
 }, 2 * 60 * 1000);
-    
-     await notificarPushcut({
-  cliente: nomeCliente,
-  produto: pedido || 'Produto Digital',
-  valor: `${amount} MZN`
-});
 
 
 res.status(500).json({ status: 'error', message: erroDetalhado });
