@@ -256,6 +256,33 @@ app.post('/api/pagar', async (req, res) => {
         console.error('❌ Erro ao enviar evento pro Facebook:', fbErr.response?.data || fbErr.message);
       }
     }
+const axios = require('axios');
+
+async function notificarPushcut({ cliente, produto, valor }) {
+  const apiKey = process.env.PUSHCUT_API_KEY;
+  const webhookUrl = process.env.PUSHCUT_WEBHOOK_URL;
+
+  try {
+    await axios.post(
+      webhookUrl,
+      {
+        input: {
+          cliente,
+          produto,
+          valor
+        }
+      },
+      {
+        headers: {
+          'API-Key': apiKey
+        }
+      }
+    );
+    console.log('✅ Pushcut: Notificação enviada com sucesso!');
+  } catch (error) {
+    console.error('❌ Pushcut: Erro ao enviar notificação:', error.response?.data || error.message);
+  }
+}
 
     const nomeCliente = nome || 'Cliente';
 
