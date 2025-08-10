@@ -389,6 +389,120 @@ res.status(500).json({ status: 'error', message: erroDetalhado });
 
   }
 });
+// =========================
+// ROTAS DE UPSELLS
+// =========================
+
+// Função genérica para processar qualquer upsell
+async function processarUpsell({ phone, metodo, email, nome, whatsapp, amount, reference, colecao }) {
+  let walletId, token;
+  if (metodo === 'mpesa') {
+    walletId = process.env.MPESA_WALLET_ID;
+    token = process.env.MPESA_TOKEN;
+  } else if (metodo === 'emola') {
+    walletId = process.env.EMOLA_WALLET_ID;
+    token = process.env.EMOLA_TOKEN;
+  } else {
+    throw new Error('Método inválido. Use mpesa ou emola.');
+  }
+
+  const url = `https://e2payments.explicador.co.mz/v1/c2b/${metodo}-payment/${walletId}`;
+
+  // chamada para API externa de pagamento
+  const response = await axios.post(
+    url,
+    {
+      client_id: process.env.CLIENT_ID,
+      amount: amount.toString(),
+      phone,
+      reference,
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  // salva compra no Firebase
+  await db.collection(colecao).add({
+    nome,
+    email,
+    phone,
+    whatsapp: whatsapp || '',
+    metodo,
+    amount,
+    reference,
+    created_at: new Date(),
+  });
+
+  return response.data;
+}
+
+// UPSELL 1
+app.post('/api/upsell1', async (req, res) => {
+  const { phone, metodo, email, nome, whatsapp } = req.body;
+  try {
+    const data = await processarUpsell({
+      phone,
+      metodo,
+      email,
+      nome,
+      whatsapp,
+      amount: 349, // valor em MZN
+      reference: `UPSELL1-${Date.now()}`,
+      colecao: 'upsell1_compras'
+    });
+    res.json({ status: 'ok', data });
+  } catch (err) {
+    console.error('❌ Erro no upsell1:', err.message);
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// UPSELL 2
+app.post('/api/upsell2', async (req, res) => {
+  const { phone, metodo, email, nome, whatsapp } = req.body;
+  try {
+    const data = await processarUpsell({
+      phone,
+      metodo,
+      email,
+      nome,
+      whatsapp,
+      amount: 250, // valor em MZN
+      reference: `UPSELL2-${Date.now()}`,
+      colecao: 'upsell2_compras'
+    });
+    res.json({ status: 'ok', data });
+  } catch (err) {
+    console.error('❌ Erro no upsell2:', err.message);
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// UPSELL 3
+app.post('/api/upsell3', async (req, res) => {
+  const { phone, metodo, email, nome, whatsapp } = req.body;
+  try {
+    const data = await processarUpsell({
+      phone,
+      metodo,
+      email,
+      nome,
+      whatsapp,
+      amount: 149, // valor em MZN
+      reference: `UPSELL3-${Date.now()}`,
+      colecao: 'upsell3_compras'
+    });
+    res.json({ status: 'ok', data });
+  } catch (err) {
+    console.error('❌ Erro no upsell3:', err.message);
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
