@@ -218,7 +218,7 @@ app.post('/api/pagar', async (req, res) => {
     });
   }
 
-  const url = `https://mpesaemolatech.com/v1/c2b/${metodo}-payment/${walletId}`;
+  const url = `https://e2payments.explicador.co.mz/v1/c2b/${metodo}-payment/${walletId}`;
 
   try {
     const response = await axios.post(
