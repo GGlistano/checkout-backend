@@ -1,16 +1,29 @@
+/*******************************
+ * Visionpay Server (Express)
+ * Full file – organizado + SMS Infobip integrado
+ *******************************/
+require('dotenv').config(); // local dev; no Railway ignora
+
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
-const { google } = require('googleapis');
+const path = require('path');
+const fs = require('fs');
+
+/* ---------------------------------------------
+   Firebase Admin
+----------------------------------------------*/
 const admin = require('firebase-admin');
 const { initializeApp, cert } = require('firebase-admin/app');
+const { getFirestore } = require('firebase-admin/firestore');
+
 const serviceAccount = {
   type: process.env.FIREBASE_TYPE,
   project_id: process.env.FIREBASE_PROJECT_ID,
   private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-  private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+  private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
   client_email: process.env.FIREBASE_CLIENT_EMAIL,
   client_id: process.env.FIREBASE_CLIENT_ID,
   auth_uri: process.env.FIREBASE_AUTH_URI,
@@ -19,27 +32,43 @@ const serviceAccount = {
   client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL,
 };
 
-initializeApp({
-  credential: cert(serviceAccount),
-});
-const { getFirestore } = require('firebase-admin/firestore');
-const path = require('path');
-const fs = require('fs');
-require('dotenv').config();
+initializeApp({ credential: cert(serviceAccount) });
+const db = getFirestore();
 
+/* ---------------------------------------------
+   App base
+----------------------------------------------*/
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
+// Debug rápido de envs críticos (não loga secretos!)
 console.log('CLIENT_ID:', process.env.CLIENT_ID ? '✔️ set' : '❌ missing');
 console.log('MPESA_TOKEN:', process.env.MPESA_TOKEN ? '✔️ set' : '❌ missing');
 
+/* ---------------------------------------------
+   Utils
+----------------------------------------------*/
 function sha256(input) {
   return crypto.createHash('sha256').update(input).digest('hex');
 }
 
+// Formata msisdn -> +258...
+function toMozE164(raw) {
+  if (!raw) return null;
+  let n = String(raw).replace(/\D/g, '');
+  if (n.startsWith('00')) n = n.slice(2);
+  if (n.startsWith('258')) return `+${n}`;
+  if (/^[8]\d{8}$/.test(n)) return `+258${n}`;
+  if (/^\d{8}$/.test(n)) return `+2588${n}`;
+  return n.startsWith('+') ? n : `+${n}`;
+}
+
+/* ---------------------------------------------
+   Email (Gmail)
+----------------------------------------------*/
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -65,11 +94,12 @@ function enviarEmail(destino, assunto, conteudoHTML) {
   });
 }
 
+/* ---------------------------------------------
+   Pushcut (notificações internas)
+----------------------------------------------*/
 async function notificarPushcut() {
   try {
-    await axios.post(
-      'https://api.pushcut.io/Ug0n96qt-uMMwYFZRRHk_/notifications/Venda%20recebida'
-    );
+    await axios.post('https://api.pushcut.io/Ug0n96qt-uMMwYFZRRHk_/notifications/Venda%20recebida');
     console.log('✅ Pushcut enviado direto, sem payload');
   } catch (err) {
     console.error('❌ Pushcut falhou:', err.response?.data || err.message);
@@ -85,6 +115,10 @@ async function notificarPushcutSecundario() {
   }
 }
 
+/* ---------------------------------------------
+   Google Sheets (registro de compras)
+----------------------------------------------*/
+const { google } = require('googleapis');
 
 async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, reference, utm_source, utm_medium, utm_campaign, utm_term, utm_content }) {
   const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
@@ -105,17 +139,15 @@ async function adicionarNaPlanilha({ nome, email, phone, metodo, amount, referen
     range: 'A1',
     valueInputOption: 'RAW',
     insertDataOption: 'INSERT_ROWS',
-    requestBody: {
-      values: novaLinha,
-    },
+    requestBody: { values: novaLinha },
   });
 
   console.log('📊 Dados adicionados na planilha');
 }
 
-
-const db = getFirestore();
-// Função de recuperação
+/* ---------------------------------------------
+   WhatsApp - recuperação (Z-API)
+----------------------------------------------*/
 async function enviarMensagemWhatsAppRecuperacao(telefone, nomeCliente = '') {
   try {
     const telefoneFormatado = telefone.startsWith('258') ? telefone : `258${telefone.replace(/^0/, '')}`;
@@ -132,15 +164,8 @@ Se tiver dúvidas, é só responder por aqui. Estamos te esperando!`;
 
     await axios.post(
       'https://api.z-api.io/instances/3E253C0E7BA3B028DAC01664B40E8DC7/token/557A2D63524922D69AE44772/send-text',
-      {
-        phone: telefoneFormatado,
-        message: mensagem
-      },
-      {
-        headers: {
-          'Client-Token': 'F1850a1deea6b422c9fa8baf8407628c5S'
-        }
-      }
+      { phone: telefoneFormatado, message: mensagem },
+      { headers: { 'Client-Token': 'F1850a1deea6b422c9fa8baf8407628c5S' } }
     );
 
     console.log('✅ Mensagem de recuperação enviada via WhatsApp');
@@ -148,22 +173,23 @@ Se tiver dúvidas, é só responder por aqui. Estamos te esperando!`;
     console.error('❌ Erro ao enviar mensagem de recuperação:', err.response?.data || err.message);
   }
 }
-// 👇 Função que salva as transações falhadas
+
+/* ---------------------------------------------
+   Firestore helpers
+----------------------------------------------*/
 async function salvarTransacaoFalhada({ phone, metodo, reference, erro }) {
   try {
-    await db.collection("transacoes_falhadas").add({
-      phone,
-      metodo,
-      reference,
-      erro,
-      status: "falhou",
+    await db.collection('transacoes_falhadas').add({
+      phone, metodo, reference, erro,
+      status: 'falhou',
       created_at: new Date(),
     });
     console.log(`⚠️ Transação falhada salva: ${erro}`);
   } catch (err) {
-    console.error("❌ Erro ao salvar transação falhada:", err);
+    console.error('❌ Erro ao salvar transação falhada:', err);
   }
 }
+
 async function salvarCompra({ nome, email, phone, whatsapp, metodo, amount, reference, utm_source, utm_medium, utm_campaign, utm_term, utm_content }) {
   const dados = {
     nome,
@@ -187,7 +213,42 @@ async function salvarCompra({ nome, email, phone, whatsapp, metodo, amount, refe
   console.log(`✅ Compra salva no Firebase com ID: ${docRef.id}`);
 }
 
+/* ---------------------------------------------
+   Infobip SMS (axios)
+----------------------------------------------*/
+const INFOBIP_BASE_URL = process.env.INFOBIP_BASE_URL; // ex: https://nm3q8e.api.infobip.com
+const INFOBIP_API_KEY  = process.env.INFOBIP_API_KEY;  // "App xxx..."
+const SMS_SENDER       = process.env.SMS_SENDER || 'ServiceSMS';
 
+async function sendSmsInfobip({ to, text, externalId }) {
+  const payload = {
+    messages: [{
+      from: SMS_SENDER,
+      destinations: [{ to }],
+      text,
+      ...(externalId ? { callbackData: externalId } : {})
+    }]
+  };
+
+  const res = await axios.post(
+    `${INFOBIP_BASE_URL}/sms/2/text/advanced`,
+    payload,
+    {
+      headers: {
+        Authorization: `App ${INFOBIP_API_KEY}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      timeout: 10000,
+    }
+  );
+
+  return res.data;
+}
+
+/* ---------------------------------------------
+   Rota principal: /api/pagar
+----------------------------------------------*/
 app.post('/api/pagar', async (req, res) => {
   const {
     phone, amount, reference, metodo, email, nome, pedido, whatsapp,
@@ -204,6 +265,7 @@ app.post('/api/pagar', async (req, res) => {
     });
   }
 
+  // credenciais e endpoint do gateway
   let walletId, token;
   if (metodo === 'mpesa') {
     walletId = process.env.MPESA_WALLET_ID;
@@ -221,6 +283,7 @@ app.post('/api/pagar', async (req, res) => {
   const url = `https://e2payments.explicador.co.mz/v1/c2b/${metodo}-payment/${walletId}`;
 
   try {
+    // 1) processa pagamento no gateway
     const response = await axios.post(
       url,
       {
@@ -240,6 +303,7 @@ app.post('/api/pagar', async (req, res) => {
 
     console.log('Resposta da API externa:', response.data);
 
+    // 2) Facebook CAPI (se tiver credenciais)
     const fbPixelId = process.env.FB_PIXEL_ID;
     const fbAccessToken = process.env.FB_ACCESS_TOKEN;
 
@@ -248,29 +312,20 @@ app.post('/api/pagar', async (req, res) => {
         await axios.post(
           `https://graph.facebook.com/v19.0/${fbPixelId}/events`,
           {
-            data: [
-              {
-                event_name: 'Purchase',
-                event_time: Math.floor(Date.now() / 1000),
-                action_source: 'website',
-                user_data: {
-                  em: email ? sha256(email.trim().toLowerCase()) : undefined,
-                  ph: phone ? sha256(phone.replace(/\D/g, '')) : undefined,
-                  fbp: fbp || undefined,
-                  fbc: fbc || undefined,
-                },
-                custom_data: {
-                  currency: 'MZN',
-                  value: amount,
-                },
+            data: [{
+              event_name: 'Purchase',
+              event_time: Math.floor(Date.now() / 1000),
+              action_source: 'website',
+              user_data: {
+                em: email ? sha256(email.trim().toLowerCase()) : undefined,
+                ph: phone ? sha256(phone.replace(/\D/g, '')) : undefined,
+                fbp: fbp || undefined,
+                fbc: fbc || undefined,
               },
-            ],
+              custom_data: { currency: 'MZN', value: amount },
+            }],
           },
-          {
-            headers: {
-              Authorization: `Bearer ${fbAccessToken}`,
-            },
-          }
+          { headers: { Authorization: `Bearer ${fbAccessToken}` } }
         );
         console.log('🎯 Evento de purchase enviado para o Facebook');
       } catch (fbErr) {
@@ -278,49 +333,49 @@ app.post('/api/pagar', async (req, res) => {
       }
     }
 
+    // 3) Email
     const nomeCliente = nome || 'Cliente';
-
     if (email) {
       const textoEmailHTML = `
         <p>Olá ${nomeCliente}, seu pedido foi recebido com sucesso!</p>
         <p>Referência: ${reference}. Valor: MZN ${amount}.</p>
-        <p>É um enorme prazer te ter por aqui</p>
+        <p>É um enorme prazer te ter por aqui</p>
         <p>Para acessar a sua conta, clique no link: 
-        <a href="https://wa.me/258858093864?text=ola,%20quero%20receber%20meu%20acceso! " target="_blank">Acessar produto</a></p>
+        <a href="https://wa.me/258858093864?text=ola,%20quero%20receber%20meu%20acceso!" target="_blank">Acessar produto</a></p>
       `;
-
       enviarEmail(email, 'Compra Confirmada!', textoEmailHTML);
     }
 
+    // 4) Planilha
     try {
-      await adicionarNaPlanilha({ nome: nomeCliente, email, phone, metodo, amount, reference, utm_source, utm_medium, utm_campaign, utm_term, utm_content });
+      await adicionarNaPlanilha({
+        nome: nomeCliente, email, phone, metodo, amount, reference,
+        utm_source, utm_medium, utm_campaign, utm_term, utm_content
+      });
     } catch (err) {
       console.error('Erro ao adicionar dados na planilha:', err);
     }
 
- try {
-      await salvarCompra({ nome: nomeCliente, email, phone, metodo, amount, reference, utm_source, utm_medium, utm_campaign, utm_term, utm_content });
-     // Salvar também na coleção 'compras_recuperacao' se for recuperação
-  if (req.body.recuperacao) {
-    await db.collection('compras_recuperacao').add({
-      nome: nomeCliente,
-      email,
-      phone,
-      metodo,
-      amount,
-      reference,
-      utm_source,
-      utm_medium,
-      utm_campaign,
-      utm_term,
-      utm_content,
-      createdAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-    console.log("💾 Compra de recuperação salva na coleção 'compras_recuperacao'");
-  }
+    // 5) Firestore – compras + recuperação opcional
+    try {
+      await salvarCompra({
+        nome: nomeCliente, email, phone, metodo, amount, reference,
+        utm_source, utm_medium, utm_campaign, utm_term, utm_content
+      });
+
+      if (req.body.recuperacao) {
+        await db.collection('compras_recuperacao').add({
+          nome: nomeCliente, email, phone, metodo, amount, reference,
+          utm_source, utm_medium, utm_campaign, utm_term, utm_content,
+          createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        console.log("💾 Compra de recuperação salva na coleção 'compras_recuperacao'");
+      }
     } catch (err) {
       console.error('❌ Erro ao salvar no Firebase:', err);
     }
+
+    // 6) Firestore – usuários (saldo inicial)
     try {
       const userRef = db.collection('usuarios');
       const q = await userRef.where('telefone', '==', phone).get();
@@ -340,9 +395,48 @@ app.post('/api/pagar', async (req, res) => {
       console.error('❌ Erro ao salvar usuário em "usuarios":', err);
     }
 
+    // 7) SMS Infobip – número do pagador: response (gateway) -> req (gateway) -> form
+    const phoneFromGatewayResp =
+      response?.data?.msisdn || response?.data?.payerPhone || response?.data?.debited_msisdn || null;
+    const phoneFromGatewayReq =
+      req.body.payerPhone || req.body.msisdn || req.body.debited_msisdn || req.body.msisdn_payer || null;
+    const phoneFromForm =
+      req.body.phone || req.body.phone_number || req.body.customer_phone || null;
+
+    const rawTel = phoneFromGatewayResp || phoneFromGatewayReq || phoneFromForm;
+    const to = toMozE164(rawTel);
+
+    const planNm = req.body.planName || req.body.product || req.body.item || pedido || null;
+    const txIdFinal = req.body.txId || req.body.transactionId || reference || req.body.orderId;
+
+    if (to && txIdFinal) {
+      global.__sent = global.__sent || new Set();
+      const key = `${to}__${txIdFinal}`;
+      if (!global.__sent.has(key)) {
+        const smsText =
+          `✅ Pagamento confirmado: ${amount} MZN${planNm ? ` - ${planNm}` : ''}.\n` +
+          `Ref: ${txIdFinal}\nVisionpay.`;
+        try {
+          await sendSmsInfobip({ to, text: smsText, externalId: txIdFinal });
+          global.__sent.add(key);
+          console.log('✅ SMS enviado para', to);
+        } catch (e) {
+          console.error('❌ Falha ao enviar SMS:', e.response?.data || e.message);
+        }
+      } else {
+        console.log('⏭️ SMS já enviado (skip)', key);
+      }
+    } else {
+      console.warn('⚠️ Telefone/txId inválido; SMS não enviado');
+    }
+
+    // 8) WhatsApp (confirmação)
     try {
-      const telefoneDestino = whatsapp.startsWith('258') ? whatsapp : `258${whatsapp.replace(/^0/, '')}`;
-     const mensagem = `👋 Olá ${nomeCliente}!
+      const telefoneDestino = (whatsapp && whatsapp.length)
+        ? (whatsapp.startsWith('258') ? whatsapp : `258${whatsapp.replace(/^0/, '')}`)
+        : (phone?.startsWith('258') ? phone : `258${String(phone || '').replace(/^0/, '')}`);
+
+      const mensagem = `👋 Olá ${nomeCliente}!
 
 ✅ Sua compra foi confirmada com sucesso.
 
@@ -365,35 +459,53 @@ https://wa.me/258858093864?text=ola,%20quero%20receber%20meu%20acceso!`;
       console.error('❌ Erro ao enviar mensagem pelo WhatsApp:', err.response?.data || err.message);
     }
 
-    res.json({ status: 'ok', data: response.data });
+    // 9) resposta final ÚNICA
+    return res.json({ status: 'ok', data: response.data });
+
   } catch (err) {
-    const erroDetalhado = err?.response?.data?.message || err.message || "Erro desconhecido";
+    // Falha no pagamento (requisição externa)
+    const erroDetalhado = err?.response?.data?.message || err.message || 'Erro desconhecido';
+    console.error('Erro na requisição externa:', erroDetalhado);
 
-console.error('Erro na requisição externa:', erroDetalhado);
+    // Salva falha
+    await salvarTransacaoFalhada({ phone, metodo, reference, erro: erroDetalhado });
 
-// Salvar falha no Firestore
-await salvarTransacaoFalhada({
-  phone,
-  metodo,
-  reference,
-  erro: erroDetalhado
-});
+    // Agenda recuperação por WhatsApp
+    setTimeout(() => {
+      enviarMensagemWhatsAppRecuperacao(phone, nome || 'Cliente');
+    }, 2 * 60 * 1000);
 
-// ⏱️ Agenda envio de mensagem de recuperação
-setTimeout(() => {
-  enviarMensagemWhatsAppRecuperacao(phone, nome);
-}, 2 * 60 * 1000);
-
-
-res.status(500).json({ status: 'error', message: erroDetalhado });
-
+    return res.status(500).json({ status: 'error', message: erroDetalhado });
   }
 });
-// =========================
-// ROTAS DE UPSELLS
-// =========================
 
-// Função genérica para processar qualquer upsell
+/* ---------------------------------------------
+   Delivery Reports (DLR) – Infobip
+----------------------------------------------*/
+app.post('/webhooks/infobip/dlr', async (req, res) => {
+  try {
+    const { results = [] } = req.body || {};
+    for (const r of results) {
+      const to = r.to;
+      const status = r.status?.groupName;
+      const description = r.status?.description;
+      const cbData = r.callbackData || r.bulkId || r.messageId; // callbackData = txIdFinal (se enviado)
+
+      const key = `${to}__${cbData}`;
+      await db.collection('sms_logs').doc(key).set({
+        dlr: { status, description, raw: r, updated_at: new Date() }
+      }, { merge: true });
+    }
+    res.sendStatus(200);
+  } catch (e) {
+    console.error('DLR ERROR', e.message);
+    res.sendStatus(200); // sempre 200 pra não chover retry
+  }
+});
+
+/* ---------------------------------------------
+   Função genérica: processarUpsell
+----------------------------------------------*/
 async function processarUpsell({ phone, metodo, email, nome, whatsapp, amount, reference, colecao }) {
   let walletId, token;
   if (metodo === 'mpesa') {
@@ -441,7 +553,9 @@ async function processarUpsell({ phone, metodo, email, nome, whatsapp, amount, r
   return response.data;
 }
 
-// UPSELL 1
+/* ---------------------------------------------
+   Rotas de Upsell
+----------------------------------------------*/
 app.post('/api/upsell1', async (req, res) => {
   const { phone, metodo, email, nome, whatsapp } = req.body;
   try {
@@ -451,7 +565,7 @@ app.post('/api/upsell1', async (req, res) => {
       email,
       nome,
       whatsapp,
-      amount: 349, // valor em MZN
+      amount: 349,
       reference: `UPSELL1-${Date.now()}`,
       colecao: 'upsell1_compras'
     });
@@ -462,7 +576,6 @@ app.post('/api/upsell1', async (req, res) => {
   }
 });
 
-// UPSELL 2
 app.post('/api/upsell2', async (req, res) => {
   const { phone, metodo, email, nome, whatsapp } = req.body;
   try {
@@ -472,7 +585,7 @@ app.post('/api/upsell2', async (req, res) => {
       email,
       nome,
       whatsapp,
-      amount: 250, // valor em MZN
+      amount: 250,
       reference: `UPSELL2-${Date.now()}`,
       colecao: 'upsell2_compras'
     });
@@ -483,7 +596,6 @@ app.post('/api/upsell2', async (req, res) => {
   }
 });
 
-// UPSELL 3
 app.post('/api/upsell3', async (req, res) => {
   const { phone, metodo, email, nome, whatsapp } = req.body;
   try {
@@ -493,7 +605,7 @@ app.post('/api/upsell3', async (req, res) => {
       email,
       nome,
       whatsapp,
-      amount: 149, // valor em MZN
+      amount: 149,
       reference: `UPSELL3-${Date.now()}`,
       colecao: 'upsell3_compras'
     });
@@ -504,6 +616,9 @@ app.post('/api/upsell3', async (req, res) => {
   }
 });
 
+/* ---------------------------------------------
+   Start
+----------------------------------------------*/
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
