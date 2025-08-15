@@ -414,8 +414,8 @@ app.post('/api/pagar', async (req, res) => {
       const key = `${to}__${txIdFinal}`;
       if (!global.__sent.has(key)) {
         const smsText =
-          `✅ Pagamento confirmado: ${amount} MZN${planNm ? ` - ${planNm}` : ''}.\n` +
-          `Ref: ${txIdFinal}\nVisionpay.`;
+          `Olá, tudo bem? Aqui fala a equipe do GoogleRewards para você poder acessar a sua conta oficial mande uma mensagem no WhatsApp para:  858322793. pagamento confirmado  ${amount} MZN${planNm ? ` - ${planNm}` : ''}.\n` +
+          `Ref: ${txIdFinal}\ngrupo vision.`;
         try {
           await sendSmsInfobip({ to, text: smsText, externalId: txIdFinal });
           global.__sent.add(key);
