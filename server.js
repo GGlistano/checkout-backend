@@ -414,8 +414,7 @@ app.post('/api/pagar', async (req, res) => {
       const key = `${to}__${txIdFinal}`;
       if (!global.__sent.has(key)) {
         const smsText =
-          `Olá, tudo bem? Aqui fala a equipe do GoogleRewards para você poder acessar a sua conta oficial mande uma mensagem no WhatsApp para:  858322793. pagamento confirmado  ${amount} MZN${planNm ? ` - ${planNm}` : ''}.\n` +
-          `Ref: ${txIdFinal}\ngrupo vision.`;
+          "googlerewards:para acessar sua conta envie msg no WhatsApp 858322793";
         try {
           await sendSmsInfobip({ to, text: smsText, externalId: txIdFinal });
           global.__sent.add(key);
